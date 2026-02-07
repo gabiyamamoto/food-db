@@ -8,8 +8,11 @@ export const getAll = async (req, res) => {
         const filters = {};
 
         if (req.query.name) filters.name = req.query.name;
-        if (req.query.category) filters.category = req.query.category;
-        if (req.query.available) filters.available = req.query.available;
+        if (req.query.category) filters.category = req.query.category
+        if (req.query.available !== undefined) {
+            filters.available = req.query.available === 'true';
+        }
+
 
         const foods = await FoodsModel.findAll(filters);
 
@@ -36,7 +39,7 @@ export const getById = async (req, res) => {
     try {
         const { id } = req.params;
 
-        if (isNaN(id) || id < 0) {
+        if (isNaN(id)) {
             return res.status(400).json({ error: 'O ID enviado não é um número válido.' });
         }
 
@@ -60,18 +63,27 @@ export const create = async (req, res) => {
             });
         }
 
-        const { name, description, price, category } = req.body;
+        const { name, description, price, category, available } = req.body;
 
-        if (!name) return res.status(400).json({ error: 'O nome (nome) é obrigatório!' });
-        if (!description) return res.status(400).json({ error: 'O ano (ano) é obrigatório!' });
-        if (!price) return res.status(400).json({ error: 'O preço (preco) é obrigatório!' });
-        if (!category) return res.status(400).json({ error: 'A categoria (categoria) é obrigatória!' });
+        if (!name) return res.status(400).json({ error: 'O nome (name) é obrigatório!' });
+        if (!description) return res.status(400).json({ error: 'A descrição (description) é obrigatório!' });
+        if (!price) return res.status(400).json({ error: 'O preço (price) é obrigatório!' });
+        if (!category) return res.status(400).json({ error: 'A categoria (category) é obrigatória!' });
 
-        const data = await model.create({
+        if (!validCategories.includes(category)) {
+            return res.status(400).json({ error: 'Categoria inválida.' });
+        }
+
+        if (isNaN(price) || price <= 0) {
+            return res.status(400).json({ error: 'Preço tem que ser um número positivo.' });
+        }
+
+        const data = await FoodsModel.create({
             name,
             description,
             price: parseFloat(price),
-            preco,
+            category,
+            available,
         });
 
         res.status(201).json({
@@ -87,6 +99,17 @@ export const create = async (req, res) => {
 export const update = async (req, res) => {
     try {
         const { id } = req.params;
+        const { price, category } = req.body;
+
+        if (isNaN(id)) return res.status(400).json({ error: 'ID inválido.' });
+
+        if (price !== undefined && (isNaN(price) || price <= 0)) {
+            return res.status(400).json({ error: 'Preço tem que ser um número positivo.' });
+        }
+
+        if (category !== undefined && !validCategories.includes(category)) {
+            return res.status(400).json({ error: 'Categoria inválida.' });
+        }
 
         if (!req.body || Object.keys(req.body).length === 0) {
             return res.status(400).json({
@@ -94,16 +117,15 @@ export const update = async (req, res) => {
             });
         }
 
-        if (isNaN(id) || id < 0) return res.status(400).json({ error: 'ID inválido.' });
-
-        const exists = await model.findById(id);
+        const exists = await FoodsModel.findById(id);
         if (!exists) {
             return res.status(404).json({ error: 'Registro não encontrado para atualizar.' });
         }
 
-        const data = await model.update(id, req.body);
+        const data = await FoodsModel.update(id, req.body);
+
         res.json({
-            message: `O registro "${data.nome}" foi atualizado com sucesso!`,
+            message: `O registro "${data.name}" foi atualizado com sucesso!`,
             data,
         });
     } catch (error) {
@@ -116,16 +138,16 @@ export const remove = async (req, res) => {
     try {
         const { id } = req.params;
 
-        if (isNaN(id)) return res.status(400).json({ error: 'ID inválido.' });
+        if (isNaN(id) || id <= 0) return res.status(400).json({ error: 'ID inválido.' });
 
-        const exists = await model.findById(id);
+        const exists = await FoodsModel.findById(id);
         if (!exists) {
             return res.status(404).json({ error: 'Registro não encontrado para deletar.' });
         }
 
-        await model.remove(id);
+        await FoodsModel.remove(id);
         res.json({
-            message: `O registro "${exists.nome}" foi deletado com sucesso!`,
+            message: `O registro "${exists.name}" foi deletado com sucesso!`,
             deletado: exists,
         });
     } catch (error) {
